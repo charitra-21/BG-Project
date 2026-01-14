@@ -1,14 +1,14 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-    clerkId: { type: String, reqiured: true, unique: true },
+    clerkId: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    photo: { type: String, reqiured: true },
+    photo: { type: String, required: true },
     firstName: { type: String },
     lastName: { type: String },
-    creditBalance: { type: Number,default:5 }
-})
+    creditBalance: { type: Number, default: 5,min: 0 }
+});
 
-const userModel = mongoose.models.user || mongoose.model("user",userSchema)
+const userModel = mongoose.models.user || mongoose.model("user", userSchema);
 
 export default userModel;
