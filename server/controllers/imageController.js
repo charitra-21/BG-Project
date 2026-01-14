@@ -6,9 +6,9 @@ import userModel from "../models/usermodel.js"
 const removeBgImage = async(req,res) =>{
     try {
         
-       const {clerkId} = req.body
+       const { clerkId } = req.body
 
-       const user = await userModel.findOne({clerkId})
+       const user = await userModel.findOne({ clerkId })
         if(!user){
             return res.json({success:false,message:'User Not found'})
         }
@@ -30,14 +30,25 @@ const {data} =await axios.post('https://clipdrop-api.co/remove-background/v1',fo
     responseType: 'arraybuffer'
 })
 
-    const base64Image = Buffer.form(data,'binary').toString('base64')
+    const base64Image = Buffer.from(data,'binary').toString('base64')
     const resultImage = `data:${req.file.mimetype};base64,${base64Image}`
+
+    // Clean up uploaded file
+    fs.unlink(imagePath, (err) => {
+        if(err) console.log('File deletion error:', err)
+    })
 
     await userModel.findByIdAndUpdate(user._id,{creditBalance:user.creditBalance - 1})
     res.json({success:true, resultImage,creditBalance: user.creditBalance-1, message:'Background Removed'})
 
     } catch (error) {
     console.log(error.message)
+    // Clean up file if exists
+    if(req.file && req.file.path){
+        fs.unlink(req.file.path, (err) => {
+            if(err) console.log('File deletion error:', err)
+        })
+    }
         res.json({success:false,message:error.message})
     }
 }

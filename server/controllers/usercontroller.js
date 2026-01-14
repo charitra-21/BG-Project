@@ -8,7 +8,7 @@ import transactionModel from "../models/transactionModels.js"
 
 const userCredits = async (req,res) =>{
     try {
-        const { clerkId } = req.clerkId;
+        const { clerkId } = req.body;
         if (!clerkId) return res.status(400).json({ success: false, message: "clerkId required" });
         const userData = await userModel.findOne({ clerkId })
         if (!userData) return res.status(404).json({ success: false, message: "User not found" });
