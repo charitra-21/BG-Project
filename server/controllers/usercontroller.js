@@ -1,9 +1,55 @@
 import userModel from "../models/usermodel.js"
-
+import { Webhook } from "svix"
 import razorpay from 'razorpay'
 import transactionModel from "../models/transactionModels.js"
 
+const clerkWebhooks = async (req,res) =>{
+    try {
+        const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
+        await whook.verify(JSON.stringify(req.body),{
+             "svix-id": req.headers['svix-id'],
+             "svix-timestamp": req.headers['svix-timestamp'],
+             "svix-signature": req.headers['svix-signature']
+        })
 
+        const { type, data } = req.body
+        switch (type) {
+            case "user.created":
+                const userData = {
+                    clerkId: data.id,
+                    email: data.email_addresses[0].email_address,
+                    photo: data.image_url,
+                    firstName: data.first_name,
+                    lastName: data.last_name
+                }
+                await userModel.create(userData)
+                res.status(200).json({success:true,message:"User Created"})
+                break;
+            case "user.updated": {
+                const userData = {
+                    email: data.email_addresses[0].email_address,
+                    photo: data.image_url,
+                    firstName: data.first_name,
+                    lastName: data.last_name
+                }
+                await userModel.findOneAndUpdate({clerkId: data.id},userData)
+                res.status(200).json({success:true,message:"User Updated"})
+                break;
+                }
+            case "user.deleted": {
+                await userModel.findOneAndDelete({clerkId: data.id})
+                res.status(200).json({success:true,message:"User Deleted"})
+                break;
+            }
+            default:
+                break;
+        }
+
+    } catch (error) {
+       console.log(error.message)
+       res.status(400).json({success:false,message:error.message}) 
+    }
+}
 
 
 const userCredits = async (req,res) =>{
@@ -118,4 +164,4 @@ const verifyRazorpay = async (req,res) =>{
     }
 }
 
-export { userCredits, paymentRazorpay, verifyRazorpay}
+export { clerkWebhooks, userCredits, paymentRazorpay, verifyRazorpay}
