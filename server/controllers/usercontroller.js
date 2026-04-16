@@ -3,10 +3,52 @@ import { Webhook } from "svix"
 import razorpay from 'razorpay'
 import transactionModel from "../models/transactionModels.js"
 
+const getUserField = (decoded, keys) => {
+  for (const key of keys) {
+    const value = decoded?.[key]
+    if (value) return value
+  }
+  return undefined
+}
+
+const getOrCreateUser = async (req) => {
+  const { clerkId, tokenDecoded } = req
+  let user = await userModel.findOne({ clerkId })
+  if (!user) {
+    const email = getUserField(tokenDecoded, [
+      'email',
+      'email_address',
+      'email_address_verified',
+      'email_addresses',
+      'primary_email',
+    ])
+
+    const emailValue = typeof email === 'string'
+      ? email
+      : Array.isArray(email)
+        ? email[0]?.email_address || email[0]
+        : `${clerkId}@clerk.local`
+
+    const photo = getUserField(tokenDecoded, ['picture', 'image_url', 'photo']) || 'https://example.com/default-avatar.png'
+    const firstName = getUserField(tokenDecoded, ['first_name', 'given_name', 'firstName']) || ''
+    const lastName = getUserField(tokenDecoded, ['last_name', 'family_name', 'lastName']) || ''
+
+    user = await userModel.create({
+      clerkId,
+      email: emailValue,
+      photo,
+      firstName,
+      lastName,
+    })
+  }
+  return user
+}
+
 const clerkWebhooks = async (req,res) =>{
     try {
         const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET)
-        await whook.verify(JSON.stringify(req.body),{
+        const rawBody = req.rawBody || JSON.stringify(req.body)
+        await whook.verify(rawBody, {
              "svix-id": req.headers['svix-id'],
              "svix-timestamp": req.headers['svix-timestamp'],
              "svix-signature": req.headers['svix-signature']
@@ -56,8 +98,7 @@ const userCredits = async (req,res) =>{
     try {
         const { clerkId } = req.body;
         if (!clerkId) return res.status(400).json({ success: false, message: "clerkId required" });
-        const userData = await userModel.findOne({ clerkId })
-        if (!userData) return res.status(404).json({ success: false, message: "User not found" });
+        const userData = await getOrCreateUser(req)
 
         res.json({success:true, credits:userData.creditBalance})
     } catch (error) {
@@ -75,7 +116,7 @@ const paymentRazorpay = async(req,res) =>{
     try {
         
         const { clerkId, planId } = req.body
-        const userData = await userModel.findOne({ clerkId })
+        const userData = await getOrCreateUser(req)
         if(!userData || !planId){
             return res.json({success:false, message:'Invalid Credentials'})
         }
@@ -164,4 +205,4 @@ const verifyRazorpay = async (req,res) =>{
     }
 }
 
-export { clerkWebhooks, userCredits, paymentRazorpay, verifyRazorpay}
+export { clerkWebhooks, userCredits, paymentRazorpay, verifyRazorpay, getOrCreateUser }

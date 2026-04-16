@@ -2,13 +2,14 @@ import axios from 'axios'
 import fs from 'fs'
 import FormData from 'form-data'
 import userModel from "../models/usermodel.js"
+import { getOrCreateUser } from './usercontroller.js'
 
 const removeBgImage = async(req,res) =>{
     try {
         
        const { clerkId } = req.body
 
-       const user = await userModel.findOne({ clerkId })
+       const user = await getOrCreateUser(req)
         if(!user){
             return res.json({success:false,message:'User Not found'})
         }
